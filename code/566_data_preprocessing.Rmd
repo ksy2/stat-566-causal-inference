@@ -1,0 +1,202 @@
+---
+title: "Stat 566 - Project"
+subtitle: "H1N1 Vaccination"
+author: "Natalie Chisam, Rachel Flodin, Kaelan Yu"
+date: "4/13/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(formatR)
+knitr::opts_chunk$set(echo=FALSE,tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+```{r data}
+# Source: https://www.kaggle.com/arashnic/flu-data
+# Import Data
+H1N1.dat <- read.csv("./H1N1_Flu_Vaccines.csv")
+
+# Look at the dimensions
+dim(H1N1.dat)
+```
+
+```{r introData}
+# Look at a summary
+summary(H1N1.dat)
+
+# Look at the data structure
+str(H1N1.dat)
+```
+
+```{r variableConv}
+# Add "NA" to character variables
+H1N1.dat$age_group[H1N1.dat$age_group==""] <- NA
+H1N1.dat$education[H1N1.dat$education==""] <- NA
+H1N1.dat$race[H1N1.dat$race==""] <- NA
+H1N1.dat$sex[H1N1.dat$sex==""] <- NA
+H1N1.dat$income_poverty[H1N1.dat$income_poverty==""] <- NA
+H1N1.dat$marital_status[H1N1.dat$marital_status==""] <- NA
+H1N1.dat$rent_or_own[H1N1.dat$rent_or_own==""] <- NA
+H1N1.dat$employment_status[H1N1.dat$employment_status==""] <- NA
+H1N1.dat$census_msa[H1N1.dat$census_msa==""] <- NA
+
+# Binary variables - convert to factors with Yes/No labels
+H1N1.dat$h1n1_vaccine <- factor(H1N1.dat$h1n1_vaccine, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$h1n1_vaccine <- addNA(H1N1.dat$h1n1_vaccine)
+H1N1.dat$seasonal_vaccine <- factor(H1N1.dat$seasonal_vaccine, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$seasonal_vaccine <- addNA(H1N1.dat$seasonal_vaccine)
+H1N1.dat$behavioral_wash_hands <- factor(H1N1.dat$behavioral_wash_hands, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$behavioral_wash_hands <- addNA(H1N1.dat$behavioral_wash_hands)
+H1N1.dat$behavioral_large_gatherings <- factor(H1N1.dat$behavioral_large_gatherings, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$behavioral_large_gatherings <- addNA(H1N1.dat$behavioral_large_gatherings)
+H1N1.dat$behavioral_antiviral_meds <- factor(H1N1.dat$behavioral_antiviral_meds, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$behavioral_antiviral_meds <- addNA(H1N1.dat$behavioral_antiviral_meds)
+H1N1.dat$behavioral_avoidance <- factor(H1N1.dat$behavioral_avoidance, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$behavioral_avoidance <- addNA(H1N1.dat$behavioral_avoidance)
+H1N1.dat$behavioral_face_mask <- factor(H1N1.dat$behavioral_face_mask, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$behavioral_face_mask <- addNA(H1N1.dat$behavioral_face_mask)
+H1N1.dat$behavioral_outside_home <- factor(H1N1.dat$behavioral_outside_home, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$behavioral_outside_home <- addNA(H1N1.dat$behavioral_outside_home)
+H1N1.dat$behavioral_touch_face <- factor(H1N1.dat$behavioral_touch_face, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$behavioral_touch_face <- addNA(H1N1.dat$behavioral_touch_face)
+H1N1.dat$doctor_recc_h1n1 <- factor(H1N1.dat$doctor_recc_h1n1, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$doctor_recc_h1n1 <- addNA(H1N1.dat$doctor_recc_h1n1)
+H1N1.dat$doctor_recc_seasonal <- factor(H1N1.dat$doctor_recc_seasonal, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$doctor_recc_seasonal <- addNA(H1N1.dat$doctor_recc_seasonal)
+H1N1.dat$chronic_med_condition <- factor(H1N1.dat$chronic_med_condition, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$chronic_med_condition <- addNA(H1N1.dat$chronic_med_condition)
+H1N1.dat$child_under_6_months <- factor(H1N1.dat$child_under_6_months, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$child_under_6_months <- addNA(H1N1.dat$child_under_6_months)
+H1N1.dat$health_worker <- factor(H1N1.dat$health_worker, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$health_worker <- addNA(H1N1.dat$health_worker)
+H1N1.dat$health_insurance <- factor(H1N1.dat$health_insurance, levels=c(0,1), labels=c("No", "Yes"), exclude=NULL)
+H1N1.dat$health_insurance <- addNA(H1N1.dat$health_insurance)
+
+# Convert other variables to factors
+H1N1.dat$age_group <- addNA(H1N1.dat$age_group)
+H1N1.dat$education <- addNA(H1N1.dat$education)
+H1N1.dat$race <- addNA(H1N1.dat$race)
+H1N1.dat$sex <- addNA(H1N1.dat$sex)
+H1N1.dat$income_poverty <- addNA(H1N1.dat$income_poverty)
+H1N1.dat$marital_status <- addNA(H1N1.dat$marital_status)
+H1N1.dat$rent_or_own <- addNA(H1N1.dat$rent_or_own)
+H1N1.dat$employment_status <- addNA(H1N1.dat$employment_status)
+H1N1.dat$h1n1_concern <- addNA(H1N1.dat$h1n1_concern)
+H1N1.dat$h1n1_knowledge <- addNA(H1N1.dat$h1n1_knowledge)
+H1N1.dat$opinion_h1n1_vacc_effective <- addNA(H1N1.dat$opinion_h1n1_vacc_effective)
+H1N1.dat$opinion_h1n1_risk <- addNA(H1N1.dat$opinion_h1n1_risk)
+H1N1.dat$opinion_h1n1_sick_from_vacc <- addNA(H1N1.dat$opinion_h1n1_sick_from_vacc)
+H1N1.dat$opinion_seas_vacc_effective <- addNA(H1N1.dat$opinion_seas_vacc_effective)
+H1N1.dat$opinion_seas_risk <- addNA(H1N1.dat$opinion_seas_risk)
+H1N1.dat$opinion_seas_sick_from_vacc <- addNA(H1N1.dat$opinion_seas_sick_from_vacc)
+H1N1.dat$census_msa <- addNA(H1N1.dat$census_msa)
+H1N1.dat$household_adults <- addNA(H1N1.dat$household_adults)
+H1N1.dat$household_children <- addNA(H1N1.dat$household_children)
+```
+
+## Variables Removed
+
+**respondent_id** – unique identifier, ranges from 0 to 26706
+
+**hhs_geo_region** - Respondent's residence using a 10-region geographic classification defined by the U.S. Dept. of Health and Human Services. Values are represented as short random character strings.
+
+**employment_industry** - Type of industry respondent is employed in. Values are represented as short random character strings.
+
+**employment_occupation** - Type of occupation of respondent. Values are represented as short random character strings.
+
+
+```{r removeVars}
+# If the dataset still has all 38 columns, remove the following variables:
+# respondent_id,hhs_geo_region,employment_industry,employment_occupation 
+if(ncol(H1N1.dat)==38)
+{
+H1N1.dat <- H1N1.dat[,-c(1,31,35,36)]
+}
+```
+
+## Descriptions of the variables
+
+**h1n1_vaccine** - Whether respondent received H1N1 flu vaccine.
+
+**seasonal_vaccine** - Whether respondent received seasonal flu vaccine.
+
+**age_group** - Age group of respondent.
+
+**education** - Self-reported education level.
+
+**race** - Race of respondent.
+
+**sex** - Sex of respondent.
+
+**income_poverty** - Household annual income of respondent with respect to 2008 Census poverty thresholds.
+
+**marital_status** - Marital status of respondent.
+
+**rent_or_own** - Housing situation of respondent.
+
+**employment_status** - Employment status of respondent.
+
+**h1n1_concern** - Level of concern about the H1N1 flu.
+0 = Not at all concerned; 1 = Not very concerned; 2 = Somewhat concerned; 3 = Very concerned.
+
+**h1n1_knowledge** - Level of knowledge about H1N1 flu.
+0 = No knowledge; 1 = A little knowledge; 2 = A lot of knowledge.
+
+**behavioral_wash_hands** - Has frequently washed hands or used hand sanitizer. (binary)
+
+**behavioral_large_gatherings** - Has reduced time at large gatherings. (binary)
+
+**behavioral_antiviral_meds** - Has taken antiviral medications. (binary)
+
+**behavioral_avoidance** - Has avoided close contact with others with flu-like symptoms. (binary)
+
+**behavioral_face_mask** - Has bought a face mask. (binary)
+
+**behavioral_outside_home** - Has reduced contact with people outside of own household. (binary)
+
+**behavioral_touch_face** - Has avoided touching eyes, nose, or mouth. (binary)
+
+**doctor_recc_h1n1** - H1N1 flu vaccine was recommended by doctor. (binary)
+
+**doctor_recc_seasonal** - Seasonal flu vaccine was recommended by doctor. (binary)
+
+**chronic_med_condition** - Has any of the following chronic medical conditions: asthma or an other lung condition, diabetes, a heart condition, a kidney condition, sickle cell anemia or other anemia, a neurological or neuromuscular condition, a liver condition, or a weakened immune system caused by a chronic illness or by medicines taken for a chronic illness. (binary)
+
+**child_under_6_months** - Has regular close contact with a child under the age of six months. (binary)
+
+**health_worker** - Is a healthcare worker. (binary)
+
+**health_insurance** - Has health insurance. (binary)
+
+**opinion_h1n1_vacc_effective** - Respondent's opinion about H1N1 vaccine effectiveness.
+1 = Not at all effective; 2 = Not very effective; 3 = Don't know; 4 = Somewhat effective; 5 = Very effective.
+
+**opinion_h1n1_risk** - Respondent's opinion about risk of getting sick with H1N1 flu without vaccine.
+1 = Very Low; 2 = Somewhat low; 3 = Don't know; 4 = Somewhat high; 5 = Very high.
+
+**opinion_h1n1_sick_from_vacc** - Respondent's worry of getting sick from taking H1N1 vaccine.
+1 = Not at all worried; 2 = Not very worried; 3 = Don't know; 4 = Somewhat worried; 5 = Very worried.
+
+**opinion_seas_vacc_effective** - Respondent's opinion about seasonal flu vaccine effectiveness.
+1 = Not at all effective; 2 = Not very effective; 3 = Don't know; 4 = Somewhat effective; 5 = Very effective.
+
+**opinion_seas_risk** - Respondent's opinion about risk of getting sick with seasonal flu without vaccine.
+1 = Very Low; 2 = Somewhat low; 3 = Don't know; 4 = Somewhat high; 5 = Very high.
+
+**opinion_seas_sick_from_vacc** - Respondent's worry of getting sick from taking seasonal flu vaccine.
+1 = Not at all worried; 2 = Not very worried; 3 = Don't know; 4 = Somewhat worried; 5 = Very worried.
+
+**census_msa** - Respondent's residence within metropolitan statistical areas (MSA) as defined by the U.S. Census.
+
+**household_adults** - Number of other adults in household, top-coded to 3.
+
+**household_children** - Number of children in household, top-coded to 3.
+
+
+```{r EDA, fig.height=5, fig.width=8}
+for(i in colnames(H1N1.dat)){
+  plot(H1N1.dat[,i], main=i, names.arg=levels(H1N1.dat[,i]), cex.names=.7)
+}
+```
