@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: "566 Project Model Fitting, Selection, and Diagnostics"
 author: "Kaelan Yu"
@@ -62,4 +63,70 @@ vif(best.BIC) # VIF all below 5 so no notable multicollinearity issues
 
 # correlation plots
 corrplot(cor(dat.best.dummy))
+=======
+---
+title: "566 Project Model Fitting, Selection, and Diagnostics"
+author: "Kaelan Yu"
+date: "May 18, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 0. Preliminaries 
+```{r}
+# setwd("C:/Users/Kaelan/Desktop/stat-566-causal-inference/code")
+
+# access to stepAIC() function
+library(MASS)
+
+# make dummy variables
+library(fastDummies)
+
+# access variance inflation factor function
+library(alr4)
+
+# make correlation plot
+library(corrplot)
+
+source('566_exploratoryDataAnalysis.R')
+
+# convert variables to factors
+for (i in 1:k) {
+  dat[, i] <- as.factor(dat[, i])
+}
+```
+
+# 1. Fitting our Model (Logistic Regression)
+
+```{r}
+# full model
+glm.full <- glm(h1n1_vaccine ~ ., family = binomial(link = 'logit'), data = dat)
+```
+
+# 2. Variable Selection using Bayesian Information Criterion (BIC)
+
+```{r}
+best.BIC <- stepAIC(glm.full, direction = "both", trace = FALSE, k = log(n))
+
+best.BIC.variables <- attr(best.BIC$terms, "term.labels")
+
+dat.best <- dat[c("h1n1_vaccine", best.BIC.variables)]
+```
+
+# 3. Model Diagnostics - Analyzing Multicollinearity Issues
+
+```{r}
+# make all categorical variables binary dummy variables
+# k - 1 dummy variables for a variable of level k to avoid multicollinearity issues
+dat.best.dummy <- dummy_cols(dat.best, remove_first_dummy = TRUE, remove_selected_columns = TRUE)
+
+# variance inflation factors (VIF)
+vif(best.BIC) # VIF all below 5 so no notable multicollinearity issues
+
+# correlation plots
+corrplot(cor(dat.best.dummy))
+>>>>>>> b2576b742fe9de73e0ce4667cbce189cabdd36c0
 ```
