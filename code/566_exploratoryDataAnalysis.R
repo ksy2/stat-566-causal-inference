@@ -4,6 +4,8 @@
 # This R script performs exploratory data analysis on
 # a cleaned H1N1 data set from Kaggle, called "dat.csv"
 
+# setwd(""C:/Users/Kaelan/Desktop/stat-566-causal-inference/")
+
 rm(list = ls())
 
 ## 0. Preliminaries
