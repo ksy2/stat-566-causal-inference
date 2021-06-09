@@ -1,0 +1,293 @@
+---
+title: "Adjustment Methods"
+author: "H1N1 Vaccination Group"
+date: "5/15/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE, cache=FALSE}
+library(formatR)
+knitr::opts_chunk$set(echo=FALSE,tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+```{r library, warning=FALSE, message=FALSE}
+#install.packages("geepack")
+require(geepack)
+library(MASS)
+require(rgl)  #load 3d plotting package
+library(DHARMa)
+```
+
+```{r data}
+# Create dataset
+# Source: https://www.kaggle.com/arashnic/flu-data
+# Import Data
+H1N1.dat.orig <- read.csv("./H1N1_Flu_Vaccines.csv")
+
+# Add "NA" to character variables
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group==""] <- NA
+H1N1.dat.orig$education[H1N1.dat.orig$education==""] <- NA
+H1N1.dat.orig$race[H1N1.dat.orig$race==""] <- NA
+H1N1.dat.orig$sex[H1N1.dat.orig$sex==""] <- NA
+H1N1.dat.orig$income_poverty[H1N1.dat.orig$income_poverty==""] <- NA
+H1N1.dat.orig$marital_status[H1N1.dat.orig$marital_status==""] <- NA
+H1N1.dat.orig$rent_or_own[H1N1.dat.orig$rent_or_own==""] <- NA
+H1N1.dat.orig$employment_status[H1N1.dat.orig$employment_status==""] <- NA
+H1N1.dat.orig$census_msa[H1N1.dat.orig$census_msa==""] <- NA
+
+if(ncol(H1N1.dat.orig)==38)
+{
+H1N1.dat.orig <- H1N1.dat.orig[,-c(31,35,36)]
+}
+```
+
+```{r variableConvWithoutNA}
+# Convert other variables to numerics
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="18 - 34 Years"] <- 0
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="35 - 44 Years"] <- 1
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="45 - 54 Years"] <- 2
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="55 - 64 Years"] <- 3
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="65+ Years"] <- 4
+
+H1N1.dat.orig$education[H1N1.dat.orig$education=="< 12 Years"] <- 0
+H1N1.dat.orig$education[H1N1.dat.orig$education=="12 Years"] <- 1
+H1N1.dat.orig$education[H1N1.dat.orig$education=="Some College"] <- 2
+H1N1.dat.orig$education[H1N1.dat.orig$education=="College Graduate"] <- 3
+
+H1N1.dat.orig$race[H1N1.dat.orig$race=="Black"] <- 0
+H1N1.dat.orig$race[H1N1.dat.orig$race=="Hispanic"] <- 1
+H1N1.dat.orig$race[H1N1.dat.orig$race=="Other or Multiple"] <- 2
+H1N1.dat.orig$race[H1N1.dat.orig$race=="White"] <- 3
+
+H1N1.dat.orig$sex[H1N1.dat.orig$sex=="Male"] <- 0
+H1N1.dat.orig$sex[H1N1.dat.orig$sex=="Female"] <- 1
+
+H1N1.dat.orig$income_poverty[H1N1.dat.orig$income_poverty=="Below Poverty"] <- 0
+H1N1.dat.orig$income_poverty[H1N1.dat.orig$income_poverty=="<= $75,000, Above Poverty"] <- 1
+H1N1.dat.orig$income_poverty[H1N1.dat.orig$income_poverty=="> $75,000"] <- 2
+
+H1N1.dat.orig$marital_status[H1N1.dat.orig$marital_status=="Not Married"] <- 0
+H1N1.dat.orig$marital_status[H1N1.dat.orig$marital_status=="Married"] <- 1
+
+H1N1.dat.orig$rent_or_own[H1N1.dat.orig$rent_or_own=="Rent"] <- 0
+H1N1.dat.orig$rent_or_own[H1N1.dat.orig$rent_or_own=="Own"] <- 1
+
+H1N1.dat.orig$employment_status[H1N1.dat.orig$employment_status=="Unemployed"] <- 0
+H1N1.dat.orig$employment_status[H1N1.dat.orig$employment_status=="Not in Labor Force"] <- 1
+H1N1.dat.orig$employment_status[H1N1.dat.orig$employment_status=="Employed"] <- 2
+
+H1N1.dat.orig$census_msa[H1N1.dat.orig$census_msa=="Non-MSA"] <- 0
+H1N1.dat.orig$census_msa[H1N1.dat.orig$census_msa=="MSA, Not Principle  City"] <- 1
+H1N1.dat.orig$census_msa[H1N1.dat.orig$census_msa=="MSA, Principle City"] <- 2
+
+
+# Convert variables to numeric
+H1N1.dat.orig$age_group <- as.numeric(H1N1.dat.orig$age_group)
+H1N1.dat.orig$education <- as.numeric(H1N1.dat.orig$education)
+H1N1.dat.orig$race <- as.numeric(H1N1.dat.orig$race)
+H1N1.dat.orig$sex <- as.numeric(H1N1.dat.orig$sex)
+H1N1.dat.orig$income_poverty <- as.numeric(H1N1.dat.orig$income_poverty)
+H1N1.dat.orig$marital_status <- as.numeric(H1N1.dat.orig$marital_status)
+H1N1.dat.orig$rent_or_own <- as.numeric(H1N1.dat.orig$rent_or_own)
+H1N1.dat.orig$employment_status <- as.numeric(H1N1.dat.orig$employment_status)
+H1N1.dat.orig$census_msa <- as.numeric(H1N1.dat.orig$census_msa)
+```
+
+```{r removeNAs}
+# Only take the significant variables found using "both" stepwise logistic regression with BIC
+BIC.grp <- c("h1n1_vaccine", "seasonal_vaccine", "h1n1_knowledge", "behavioral_large_gatherings", "doctor_recc_h1n1", "doctor_recc_seasonal", "child_under_6_months", "health_worker", "health_insurance", "opinion_h1n1_vacc_effective", "opinion_h1n1_risk", "opinion_h1n1_sick_from_vacc", "sex", "marital_status", "respondent_id")
+
+# Remove NAs
+H1N1.dat.BIC <- H1N1.dat.orig[,BIC.grp]
+H1N1.dat.BIC <- na.omit(H1N1.dat.BIC)
+```
+
+## Calculating ACE for Observational Data
+
+```{r ACEest}
+# Bounds for ACE using slides 28-29 in lecture 1
+doctor.2by2 <- ftable(H1N1.dat.BIC[,c("h1n1_vaccine", "doctor_recc_h1n1")])/nrow(H1N1.dat.BIC)
+seasonal.2by2 <- ftable(H1N1.dat.BIC[,c("h1n1_vaccine", "seasonal_vaccine")])/nrow(H1N1.dat.BIC)
+
+# Bounds for ACE with doctor recommending h1n1 vaccine as treatment
+min.ACE.doctor <- 0 - (doctor.2by2[1,2]+doctor.2by2[2,1])
+max.ACE.doctor <- (doctor.2by2[1,1]+doctor.2by2[2,2]) - 0
+
+# Bounds for ACE with receiving seasonal vaccine as treatment
+min.ACE.seasonal <- 0 - (seasonal.2by2[1,2]+seasonal.2by2[2,1])
+max.ACE.seasonal <- (seasonal.2by2[1,1]+seasonal.2by2[2,2]) - 0
+```
+
+## Plotting polytopes and ACE bounds
+
+```{r plotObs}
+require(rgl)  #load 3d plotting package
+
+source("https://www.stat.washington.edu/tsr/s566/labs/y0y1polytopenew-rgl-col.R")
+
+#### Non-interactive version 
+#### (Useful for including plots in documents)
+## Doctor recommend pH1N1 vaccine
+simp <- do.simplex(phi=30,theta=120,r=1000,main="Doctor Recommend") # Set up plot
+# Treatment - "Yes"
+do.polytope(c(doctor.2by2[,1],doctor.2by2[,2]),simp,red="blue", blue="red")
+# Control - "No"
+#do.polytope(doctor.2by2[,1],simp,red="purple", blue="red")
+# Concat Control and Treatment
+do.itt.line(c(doctor.2by2[,1],doctor.2by2[,2]),simp)
+
+simp <- do.simplex(phi=-90,theta=90,r=500,main="Doctor Recommend from below") # Set up plot
+# Treatment - "Yes"
+do.polytope(c(doctor.2by2[,1],doctor.2by2[,2]),simp,red="blue", blue="red")
+# Control - "No"
+#do.polytope(doctor.2by2[,1],simp,red="purple", blue="red")
+# Concat Control and Treatment
+do.itt.line(c(doctor.2by2[,1],doctor.2by2[,2]),simp)
+do.ace.line(min.ACE.doctor, simp) # lower bound
+do.ace.line(max.ACE.doctor, simp) 
+
+#### Non-interactive version 
+#### (Useful for including plots in documents)
+## Seasonal flu vaccine
+simp <- do.simplex(phi=30,theta=120,r=1000,main="Seasonal Flu Vaccine") # Set up plot
+# Treatment - "Yes"
+do.polytope(c(seasonal.2by2[,1],seasonal.2by2[,2]),simp,red="blue", blue="red")
+# Control - "No"
+#do.polytope(doctor.2by2[,1],simp,red="purple", blue="red")
+# Concat Control and Treatment
+do.itt.line(c(seasonal.2by2[,1],seasonal.2by2[,2]),simp)
+
+simp <- do.simplex(phi=-90,theta=90,r=500,main="Seasonal Flu Vaccine from below") # Set up plot
+# Treatment - "Yes"
+do.polytope(c(seasonal.2by2[,1],seasonal.2by2[,2]),simp,red="blue", blue="red")
+# Control - "No"
+#do.polytope(doctor.2by2[,1],simp,red="purple", blue="red")
+# Concat Control and Treatment
+do.itt.line(c(seasonal.2by2[,1],seasonal.2by2[,2]),simp)
+do.ace.line(min.ACE.seasonal, simp) # lower bound
+do.ace.line(max.ACE.seasonal, simp) 
+```
+
+## Regression ACE Estimates and GEE with IPW ACE Estimates
+
+# Doctor Recommended H1N1 vaccine
+
+```{r ipWeightsDoctorBIC}
+
+print("Regression estimate of ACE before adjusting for confounders")
+reg.ace.dr <- glm(h1n1_vaccine~as.factor(doctor_recc_h1n1), data = H1N1.dat.BIC)
+summary(reg.ace.dr)
+# Get ACE estimate and bounds
+beta <- coef(reg.ace.dr)
+SE <- coef(summary(reg.ace.dr))[,2]
+lcl <- beta-qnorm(0.975)*SE 
+ucl <- beta+qnorm(0.975)*SE
+cbind(beta, lcl, ucl)
+
+# Using DHARMa package to check fit
+simulationOutput <- simulateResiduals(fittedModel = reg.ace.dr)
+plotResiduals(simulationOutput, quantreg=TRUE)
+plotQQunif(simulationOutput = simulationOutput)
+
+#####################################################
+# PROGRAM 12.2
+# Estimating IP weights
+# g-methods
+#####################################################
+
+# Estimation of ip weights via a logistic model
+fit.dr.b <- glm(as.factor(doctor_recc_h1n1) ~ as.factor(seasonal_vaccine)+as.factor(h1n1_knowledge)+as.factor(doctor_recc_seasonal)+as.factor(child_under_6_months)+as.factor(health_worker)+as.factor(opinion_h1n1_vacc_effective)+as.factor(opinion_h1n1_risk), family = binomial(link = "logit"), data = H1N1.dat.BIC)
+
+print("Summary output of glm")
+summary(fit.dr.b)
+# Using DHARMa package to check fit
+simulationOutput <- simulateResiduals(fittedModel = fit.dr.b)
+plotResiduals(simulationOutput, quantreg=TRUE)
+plotQQunif(simulationOutput = simulationOutput)
+
+# Calculate IPW
+p.drReccB.obs <- ifelse(H1N1.dat.BIC$doctor_recc_h1n1 == 0, 1 - predict(fit.dr.b, type = "response"), predict(fit.dr.b, type = "response"))
+H1N1.dat.BIC$wDrB <- 1/p.drReccB.obs
+
+## Summary of the inverse probability weights
+print("Summary and standard error of weights")
+summary(H1N1.dat.BIC$wDrB)
+sd(H1N1.dat.BIC$wDrB)
+
+# Estimates from a GEE
+gee.dr.b.obj <- geeglm(h1n1_vaccine~doctor_recc_h1n1, data = H1N1.dat.BIC, std.err = 'san.se', weights = wDrB, id=respondent_id, corstr="independence")
+                  
+print("Regression estimate of ACE after adjusting for confounders")
+summary(gee.dr.b.obj)  # The standard error here does not take into account				  # the uncertainty in the estimated propensity scores.
+
+# Estimated ACE and bounds
+beta <- coef(gee.dr.b.obj)
+SE <- coef(summary(gee.dr.b.obj))[,2]
+lcl <- beta-qnorm(0.975)*SE 
+ucl <- beta+qnorm(0.975)*SE
+cbind(beta, lcl, ucl)
+```
+
+# Received Seasonal Flu Vaccine
+
+```{r ipWeightsSeasonalBIC}
+print("Regression estimate of ACE before adjusting for confounders")
+reg.ace.sea <- glm(h1n1_vaccine~as.factor(seasonal_vaccine), data = H1N1.dat.BIC)
+summary(reg.ace.sea)
+# Get ACE estimate and bounds
+beta <- coef(reg.ace.sea)
+SE <- coef(summary(reg.ace.sea))[,2]
+lcl <- beta-qnorm(0.975)*SE 
+ucl <- beta+qnorm(0.975)*SE
+cbind(beta, lcl, ucl)
+
+# Using DHARMa package to check fit
+simulationOutput <- simulateResiduals(fittedModel = reg.ace.sea)
+plotResiduals(simulationOutput, quantreg=TRUE)
+plotQQunif(simulationOutput = simulationOutput)
+
+#####################################################
+# PROGRAM 12.2
+# Estimating IP weights
+# g-methods
+#####################################################
+
+# Estimation of ip weights via a logistic model
+fit.sea.b <- glm(formula = as.factor(seasonal_vaccine) ~ as.factor(doctor_recc_h1n1) + 
+    as.factor(h1n1_knowledge) + as.factor(behavioral_large_gatherings) + 
+    as.factor(doctor_recc_seasonal) + as.factor(health_worker) + 
+    as.factor(health_insurance) + as.factor(opinion_h1n1_vacc_effective) + 
+    as.factor(opinion_h1n1_risk) + as.factor(opinion_h1n1_sick_from_vacc), 
+    family = binomial(link = "logit"), data = H1N1.dat.BIC)
+print("Summary of GLM fit")
+summary(fit.sea.b)
+# Using DHARMa package to check fit
+simulationOutput <- simulateResiduals(fittedModel = fit.sea.b)
+plotQQunif(simulationOutput = simulationOutput)
+plotResiduals(simulationOutput, quantreg=TRUE)
+
+
+# Calculate IPW
+p.seaB.obs <- ifelse(H1N1.dat.BIC$seasonal_vaccine == 0, 1 - predict(fit.sea.b, type = "response"), predict(fit.sea.b, type = "response"))
+H1N1.dat.BIC$wSeaB <- 1/p.seaB.obs
+
+## Summary of the inverse probability weights
+print("Summary and standard error of weights")
+summary(H1N1.dat.BIC$wSeaB)
+sd(H1N1.dat.BIC$wSeaB)
+
+# Estimates from a GEE
+gee.sea.b.obj <- geeglm(h1n1_vaccine~seasonal_vaccine, data = H1N1.dat.BIC, std.err = 'san.se', weights = wSeaB, id=respondent_id, corstr="independence")
+                  
+print("Regression estimate of ACE after adjusting for confounders")
+summary(gee.sea.b.obj)  # The standard error here does not take into account 	  # the uncertainty in the estimated propensity scores.
+
+# Estimated ACE and bounds
+beta <- coef(gee.sea.b.obj)
+SE <- coef(summary(gee.sea.b.obj))[,2]
+lcl <- beta-qnorm(0.975)*SE 
+ucl <- beta+qnorm(0.975)*SE
+cbind(beta, lcl, ucl)
+```

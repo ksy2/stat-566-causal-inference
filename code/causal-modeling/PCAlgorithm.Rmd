@@ -1,0 +1,153 @@
+---
+title: "PC Algorithm"
+author: "H1N1 Vaccination Group"
+date: "5/15/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, echo=FALSE, error=FALSE, warning=FALSE}
+library(caret)
+library(pcalg)
+library(InvariantCausalPrediction)
+library(Rgraphviz)
+```
+
+# Create and clean dataset
+
+```{r data}
+# Source: https://www.kaggle.com/arashnic/flu-data
+# Import Data
+H1N1.dat.orig <- read.csv("./H1N1_Flu_Vaccines.csv")
+
+# Add "NA" to character variables
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group==""] <- NA
+H1N1.dat.orig$education[H1N1.dat.orig$education==""] <- NA
+H1N1.dat.orig$race[H1N1.dat.orig$race==""] <- NA
+H1N1.dat.orig$sex[H1N1.dat.orig$sex==""] <- NA
+H1N1.dat.orig$income_poverty[H1N1.dat.orig$income_poverty==""] <- NA
+H1N1.dat.orig$marital_status[H1N1.dat.orig$marital_status==""] <- NA
+H1N1.dat.orig$rent_or_own[H1N1.dat.orig$rent_or_own==""] <- NA
+H1N1.dat.orig$employment_status[H1N1.dat.orig$employment_status==""] <- NA
+H1N1.dat.orig$census_msa[H1N1.dat.orig$census_msa==""] <- NA
+
+if(ncol(H1N1.dat.orig)==38)
+{
+H1N1.dat.orig <- H1N1.dat.orig[,-c(1,31,35,36)]
+}
+```
+
+```{r variableConvWithoutNA}
+# Convert other variables to numerics
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="18 - 34 Years"] <- 0
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="35 - 44 Years"] <- 1
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="45 - 54 Years"] <- 2
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="55 - 64 Years"] <- 3
+H1N1.dat.orig$age_group[H1N1.dat.orig$age_group=="65+ Years"] <- 4
+
+H1N1.dat.orig$education[H1N1.dat.orig$education=="< 12 Years"] <- 0
+H1N1.dat.orig$education[H1N1.dat.orig$education=="12 Years"] <- 1
+H1N1.dat.orig$education[H1N1.dat.orig$education=="Some College"] <- 2
+H1N1.dat.orig$education[H1N1.dat.orig$education=="College Graduate"] <- 3
+
+H1N1.dat.orig$race[H1N1.dat.orig$race=="Black"] <- 0
+H1N1.dat.orig$race[H1N1.dat.orig$race=="Hispanic"] <- 1
+H1N1.dat.orig$race[H1N1.dat.orig$race=="Other or Multiple"] <- 2
+H1N1.dat.orig$race[H1N1.dat.orig$race=="White"] <- 3
+
+H1N1.dat.orig$sex[H1N1.dat.orig$sex=="Male"] <- 0
+H1N1.dat.orig$sex[H1N1.dat.orig$sex=="Female"] <- 1
+
+H1N1.dat.orig$income_poverty[H1N1.dat.orig$income_poverty=="Below Poverty"] <- 0
+H1N1.dat.orig$income_poverty[H1N1.dat.orig$income_poverty=="<= $75,000, Above Poverty"] <- 1
+H1N1.dat.orig$income_poverty[H1N1.dat.orig$income_poverty=="> $75,000"] <- 2
+
+H1N1.dat.orig$marital_status[H1N1.dat.orig$marital_status=="Not Married"] <- 0
+H1N1.dat.orig$marital_status[H1N1.dat.orig$marital_status=="Married"] <- 1
+
+H1N1.dat.orig$rent_or_own[H1N1.dat.orig$rent_or_own=="Rent"] <- 0
+H1N1.dat.orig$rent_or_own[H1N1.dat.orig$rent_or_own=="Own"] <- 1
+
+H1N1.dat.orig$employment_status[H1N1.dat.orig$employment_status=="Unemployed"] <- 0
+H1N1.dat.orig$employment_status[H1N1.dat.orig$employment_status=="Not in Labor Force"] <- 1
+H1N1.dat.orig$employment_status[H1N1.dat.orig$employment_status=="Employed"] <- 2
+
+H1N1.dat.orig$census_msa[H1N1.dat.orig$census_msa=="Non-MSA"] <- 0
+H1N1.dat.orig$census_msa[H1N1.dat.orig$census_msa=="MSA, Not Principle  City"] <- 1
+H1N1.dat.orig$census_msa[H1N1.dat.orig$census_msa=="MSA, Principle City"] <- 2
+
+
+# Convert variables to numeric
+H1N1.dat.orig$age_group <- as.numeric(H1N1.dat.orig$age_group)
+H1N1.dat.orig$education <- as.numeric(H1N1.dat.orig$education)
+H1N1.dat.orig$race <- as.numeric(H1N1.dat.orig$race)
+H1N1.dat.orig$sex <- as.numeric(H1N1.dat.orig$sex)
+H1N1.dat.orig$income_poverty <- as.numeric(H1N1.dat.orig$income_poverty)
+H1N1.dat.orig$marital_status <- as.numeric(H1N1.dat.orig$marital_status)
+H1N1.dat.orig$rent_or_own <- as.numeric(H1N1.dat.orig$rent_or_own)
+H1N1.dat.orig$employment_status <- as.numeric(H1N1.dat.orig$employment_status)
+H1N1.dat.orig$census_msa <- as.numeric(H1N1.dat.orig$census_msa)
+```
+
+```{r removeNAs}
+# Only take the significant variables found using "both" stepwise logistic regression with BIC
+BIC.grp <- c("h1n1_vaccine", "seasonal_vaccine", "h1n1_knowledge", "behavioral_large_gatherings", "doctor_recc_h1n1", "doctor_recc_seasonal", "child_under_6_months", "health_worker", "health_insurance", "opinion_h1n1_vacc_effective", "opinion_h1n1_risk", "opinion_h1n1_sick_from_vacc", "sex", "marital_status")
+
+# Remove NAs
+H1N1.dat.BIC <- H1N1.dat.orig[,BIC.grp]
+H1N1.dat.BIC <- na.omit(H1N1.dat.BIC)
+```
+
+## Testing data partitions
+
+```{r splitData}
+# Set seed for reproducibility
+set.seed(1)
+verb <- FALSE
+alpha <- 0.00003 #0.05/1650 
+#(1650 was usually about the maximum number of independence tests per run) 
+# Do 20 runs
+ntests <- numeric(20)
+for(i in 1:20)
+{
+  print(paste("Run", i))
+  # Do 70% splits, splitting on h1n1_vaccine variable
+  trainIndex <- createDataPartition(H1N1.dat.BIC$h1n1_vaccine, p = .7, 
+                                  list = FALSE, 
+                                  times = 1)
+
+  test2 <- H1N1.dat.BIC[trainIndex,]
+  # Create shortened names for variables
+  names2 <- c("hvac", "svac", "hknow", "blg", "drRh", "drRs", "baby", 
+              "hwork", "hins", "hveff", "hrisk", "hsickv", "sex", 
+              "marry")
+  # Count the number of levels for each variable
+  numLevels2 <- sapply(test2, function(x)length(unique(x)))
+  ## define sufficient statistics
+  suffStat2 <- list(dm = test2, nlev = numLevels2, adaptDF = FALSE)
+  ## estimate CPDAG
+  ## independence test: G^2 statistic
+  ## Using disCItest for independence test on discrete data
+  pc.H1N1.BIC <- pc(suffStat2, indepTest = disCItest, alpha = alpha, 
+                    labels = names2, verbose = verb, skel.method = 
+                      "stable")
+  if (require(Rgraphviz)) {
+    ## show estimated CPDAG
+    par(mfrow = c(1,2))
+    plot(pc.H1N1.BIC, main = "Estimated CPDAG")
+  }
+  # Look at adjacency matrix
+  showAmat(pc.H1N1.BIC)
+  # Look at edges
+  showEdgeList(pc.H1N1.BIC,names2)
+  # Get number of independence tests
+  ntests[i] <- sum(pc.H1N1.BIC@n.edgetests)
+}
+# Look at how many independence tests were done in each run
+print(ntests)
+```
